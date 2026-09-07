@@ -215,6 +215,7 @@ class SessionExtractContextProvider(ExtractContextProvider):
             if contains_resource_uri
             else ""
         )
+        workflow_steps = ["Analyze the conversation and pre-fetched context"]
         if self._eager_prefetch:
             resource_deletion_context_rule = (
                 "\n- For URIs listed under the system-generated `## Resource Deletion` block's "
@@ -223,10 +224,12 @@ class SessionExtractContextProvider(ExtractContextProvider):
                 if contains_resource_uri
                 else ""
             )
-            context_workflow = (
-                "2. Use only the memory context already included in the messages; "
-                "no tools are available\n"
-                "3. Output ONLY a JSON object (no extra text before or after)"
+            workflow_steps.extend(
+                [
+                    "Use only the memory context already included in the messages; "
+                    "no tools are available",
+                    "Output ONLY a JSON object (no extra text before or after)",
+                ]
             )
             tool_rules = (
                 "- No tools are available. Do not output read, search, write, or other tool requests\n"
@@ -234,11 +237,13 @@ class SessionExtractContextProvider(ExtractContextProvider):
                 f"in the provided memory context{resource_deletion_context_rule}"
             )
         else:
-            context_workflow = (
-                "2. Search results are already included in the messages. If you need the complete "
-                "content of a listed memory URI, use the read tool\n"
-                "3. When you have enough information, output ONLY a JSON object "
-                "(no extra text before or after)"
+            workflow_steps.extend(
+                [
+                    "Search results are already included in the messages. If you need the complete "
+                    "content of a listed memory URI, use the read tool",
+                    "When you have enough information, output ONLY a JSON object "
+                    "(no extra text before or after)",
+                ]
             )
             tool_rules = (
                 "- ONLY the read tool is available - search and write are not available\n"
@@ -246,10 +251,12 @@ class SessionExtractContextProvider(ExtractContextProvider):
                 "- ONLY read URIs that are explicitly listed in pre-fetched search results, "
                 f"returned by previous tool calls{resource_deletion_read_source}"
             )
+        context_workflow = "\n".join(
+            f"{number}. {step}" for number, step in enumerate(workflow_steps, start=1)
+        )
         goal = f"""You are a memory extraction agent. Your task is to analyze conversations and update memories.
 
 ## Workflow
-1. Analyze the conversation and pre-fetched context
 {context_workflow}
 
 ## Critical

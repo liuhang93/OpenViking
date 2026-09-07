@@ -19,6 +19,37 @@ from openviking.session.memory.vision_message_normalizer import IMAGE_DESCRIPTIO
 class TestProviderInstruction:
     """Test the provider instruction contains correct instructions."""
 
+    @pytest.mark.parametrize(
+        ("eager", "expected_workflow"),
+        [
+            (
+                True,
+                "1. Analyze the conversation and pre-fetched context\n"
+                "2. Use only the memory context already included in the messages; "
+                "no tools are available\n"
+                "3. Output ONLY a JSON object (no extra text before or after)",
+            ),
+            (
+                False,
+                "1. Analyze the conversation and pre-fetched context\n"
+                "2. Search results are already included in the messages. If you need the complete "
+                "content of a listed memory URI, use the read tool\n"
+                "3. When you have enough information, output ONLY a JSON object "
+                "(no extra text before or after)",
+            ),
+        ],
+    )
+    def test_workflow_preserves_mode_specific_step_order_and_wording(
+        self, eager, expected_workflow
+    ):
+        provider = SessionExtractContextProvider(messages=[])
+        provider._eager_prefetch = eager
+
+        instruction = provider.instruction()
+
+        workflow = instruction.split("## Workflow\n", 1)[1].split("\n\n## Critical", 1)[0]
+        assert workflow == expected_workflow
+
     @pytest.mark.parametrize("eager", [True, False])
     def test_prefetched_context_policy_applies_in_both_modes(self, eager):
         provider = SessionExtractContextProvider(messages=[])
