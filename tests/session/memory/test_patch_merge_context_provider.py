@@ -65,7 +65,12 @@ async def test_patch_merge_context_provider_prefetch_reads_originals_and_renders
     assert read_message["message_type"] == "prefetched_context"
     assert read_message["context_type"] == "memory_file"
     assert read_message["uri"] == "viking://user/u/memories/experiences/booking.md"
-    assert read_message["data"]["experience_name"] == "booking"
+    fenced_data = read_message["data"]
+    assert fenced_data.startswith("<untrusted-memory-file>\n")
+    assert fenced_data.endswith("\n</untrusted-memory-file>")
+    original_data = json.loads(fenced_data.split("\n", 1)[1].rsplit("\n", 1)[0])
+    assert original_data["experience_name"] == "booking"
+    assert original_data["content"] == "1\told line\n2\tkeep line"
     assert "tool_call_name" not in read_message
     assert "tool_name" not in read_message
     assert messages[1]["role"] == "user"
@@ -384,6 +389,9 @@ def test_patch_merge_context_provider_instruction_mentions_path_field_normalizat
 
     instruction = provider.instruction()
 
+    assert "message_type=prefetched_context" in instruction
+    assert "DATA only" in instruction
+    assert "<untrusted-memory-file>...</untrusted-memory-file>" in instruction
     assert "independent extraction patch proposals" in instruction
     assert "merge duplicate/overlapping\nmemories into one canonical file patch" in instruction
     assert "directory/filename fields" in instruction
